@@ -58,6 +58,7 @@ describe("Uniswap Factory", function () {
     const pairAddress = await uniFactory.getPair(token0.address, token1.address);
     console.log('\tpairAddress', pairAddress);
     const pair = await ethers.getContractAt(UniswapV2Pair.abi, pairAddress);
+    console.log(`\tLP Tokens Alice balance: ${await pair.balanceOf(aliceAddress)}`);
     await router.addLiquidity(
       token0.address,
       token1.address,
