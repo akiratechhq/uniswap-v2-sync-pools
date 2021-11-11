@@ -5,6 +5,7 @@ import { formatUnits, namehash, parseUnits } from "ethers/lib/utils";
 import IUniswapV2Pair from '@uniswap/v2-core/build/IUniswapV2Pair.json'
 
 import UniswapV2Factory from "../buildV2/UniswapV2Factory.json";
+import UniswapV2Pair from "../buildV2/UniswapV2Pair.json";
 
 const { deployContract } = waffle;
 
@@ -17,15 +18,17 @@ const overrides = {
 }
 
 describe("Uniswap Factory", function () {
-  let owner;
-  let user1;
-  let token0;
-  let token1;
+  let owner, ownerAddress;
+  let alice, aliceAddress;
+  let bob, bobAddress;
+  let token0, token1;
   let WETH;
 
   it("Should deploy factory", async function () {
-    [owner, user1] = await ethers.getSigners();
-    const ownerAddress = await owner.getAddress();
+    [owner, alice, bob] = await ethers.getSigners();
+    ownerAddress = await owner.getAddress();
+    aliceAddress = await alice.getAddress();
+    bobAddress = await bob.getAddress();
 
     const WETHFactory = await ethers.getContractFactory("WETH9");
     WETH = await WETHFactory.deploy();
@@ -54,7 +57,7 @@ describe("Uniswap Factory", function () {
 
     const pairAddress = await uniFactory.getPair(token0.address, token1.address);
     console.log('\tpairAddress', pairAddress);
-    const pair = new Contract(pairAddress, JSON.stringify(IUniswapV2Pair.abi));
+    const pair = await ethers.getContractAt(UniswapV2Pair.abi, pairAddress);
     await router.addLiquidity(
       token0.address,
       token1.address,
@@ -62,13 +65,12 @@ describe("Uniswap Factory", function () {
       BigNumber.from(10000),
       0,
       0,
-      ownerAddress,
+      aliceAddress,
       MaxUint256,
       overrides
     )
     const path = [token0.address, token1.address]
     expect(await router.getAmountsIn(BigNumber.from(1), path)).to.deep.eq([BigNumber.from(2), BigNumber.from(1)])
-
-    // console.log(`pair address: ${pairAddress}`);
+    console.log(`\tLP Tokens Alice balance: ${await pair.balanceOf(aliceAddress)}`);
   });
 });
