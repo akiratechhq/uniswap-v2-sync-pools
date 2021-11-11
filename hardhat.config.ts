@@ -25,6 +25,10 @@ task("accounts", "Prints the list of accounts", async (taskArgs, hre) => {
 const config: HardhatUserConfig = {
   solidity: "0.6.6",
   networks: {
+    hardhat: {
+      allowUnlimitedContractSize: true,
+      blockGasLimit: 180000000000,
+    },
     ropsten: {
       url: process.env.ROPSTEN_URL || "",
       accounts:
