@@ -1,6 +1,6 @@
 {
   "scripts": {
-    "test": "npx hardhat test",
+    "test": "TS_NODE_TRANSPILE_ONLY=1 npx hardhat test",
     "watch": "npm-watch"
   },
   "watch": {

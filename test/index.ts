@@ -1,10 +1,11 @@
 import { expect } from "chai";
 import { ethers, waffle } from "hardhat";
-import { BigNumber, Contract } from 'ethers';
+import { BigNumber, BigNumberish, Contract } from 'ethers';
 import { formatUnits, namehash, parseUnits } from "ethers/lib/utils";
 
 import UniswapV2Factory from "../buildV2/UniswapV2Factory.json";
 import UniswapV2Pair from "../buildV2/UniswapV2Pair.json";
+import { ERC20Mock, UniswapV2Router02 } from "../typechain";
 
 const { deployContract } = waffle;
 
@@ -16,12 +17,19 @@ const overrides = {
   gasLimit: 9999999
 }
 
+const showReserves = async (pair: Contract) => {
+  await pair.sync();
+  const [reserve0, reserve1] = await pair.getReserves();
+  console.log(`\t Reserve0: ${reserve0} | Reserve1: ${reserve1} | K value: ${reserve0 * reserve1}`);
+}
+
+
 describe("Uniswap Factory", function () {
   let owner, ownerAddress;
   let alice, aliceAddress;
   let bob, bobAddress;
   let carl, carlAddress;
-  let token0, token1;
+  let token0: ERC20Mock, token1: ERC20Mock;
   let WETH;
 
   it("Should deploy factory", async function () {
@@ -60,58 +68,131 @@ describe("Uniswap Factory", function () {
 
     await token0.approve(router.address, MaxUint256);
     await token1.approve(router.address, MaxUint256);
-    await router.addLiquidity(
+
+    console.log("\n");
+
+    const addLiquidity = async (t0Amount: BigNumberish, t1Amount: BigNumberish, toAddress: string): Promise<
+      [BigNumber, BigNumber, BigNumber] & {
+        amountA: BigNumber;
+        amountB: BigNumber;
+        liquidity: BigNumber;
+      }
+    > => {
+      // NB: first use callStatic: simulates the call as a view only one
+      // returns the values from the chain
+      const rt = await router.callStatic.addLiquidity(
+        token0.address,
+        token1.address,
+        t0Amount,
+        t1Amount,
+        0,
+        0,
+        toAddress,
+        MaxUint256,
+        overrides
+      );
+
+      await router.addLiquidity(
+        token0.address,
+        token1.address,
+        t0Amount,
+        t1Amount,
+        0,
+        0,
+        toAddress,
+        MaxUint256,
+        overrides
+      );
+
+      console.log(`\t addLiquidity: amount0: ${rt[0]} | amount1: ${rt[1]} | LP Tokens: ${rt[2]}`);
+
+      return rt;
+    }
+
+
+    // NB: if getting reverted with reason string 'ds-math-sub-underflow'
+    // it means that you need to add more liquidity
+    // see UniswapV2Pair.MINIMUM_LIQUIDITY and mint()
+    const aliceAddLiqTkn0 = 4000;
+    const aliceAddLiqTkn1 = 2000;
+    console.log(`\t Alice addLiquidity Tkn0: ${aliceAddLiqTkn0}; Tkn1: ${aliceAddLiqTkn1}`);
+    await addLiquidity(
+      aliceAddLiqTkn0,
+      aliceAddLiqTkn1,
+      aliceAddress,
+    );
+    const path = [token0.address, token1.address]
+    // // expect(await router.getAmountsIn(BigNumber.from(1), path)).to.deep.eq([BigNumber.from(2), BigNumber.from(1)])
+    await showReserves(pair);
+
+    // NB using callStatic: simulates the call as a view only one
+    // returns the values from the chain
+    const tokenASwapAmount = 100;
+    const [swapAmount0, swapAmount1] = await router.callStatic.swapExactTokensForTokens(
+      tokenASwapAmount,
+      0,
+      path,
+      ownerAddress,
+      MaxUint256,
+    );
+    console.log("\n");
+    console.log(`\t Swapped ${swapAmount0.toString()} Token A into ${swapAmount1} Token B`);
+    // the actual call happens here
+    await router.swapExactTokensForTokens(
+      tokenASwapAmount,
+      0,
+      path,
+      ownerAddress,
+      MaxUint256,
+    );
+
+    await showReserves(pair);
+
+    console.log("\n");
+    const bobAddLiqTkn0 = 4000;
+    const bobAddLiqTkn1 = 2000;
+    console.log(`\t Bob addLiquidity Tkn0: ${bobAddLiqTkn0}; Tkn1: ${bobAddLiqTkn1}`);
+    await addLiquidity(
+      bobAddLiqTkn0,
+      bobAddLiqTkn1,
+      bobAddress
+    );
+
+    const lpTokensBob = await pair.balanceOf(bobAddress);
+    console.log(`\t LP Tokens Bob balance: ${lpTokensBob}`);
+    await showReserves(pair);
+
+    console.log("\n");
+    const carlAddLiqTkn0 = 4000;
+    const carlAddLiqTkn1 = 2000;
+    console.log(`\t Carl addLiquidity Tkn0: ${carlAddLiqTkn0}; Tkn1: ${carlAddLiqTkn1}`);
+    await addLiquidity(
+      carlAddLiqTkn0,
+      carlAddLiqTkn1,
+      carlAddress,
+    );
+
+    const lpTokenscarl = await pair.balanceOf(carlAddress);
+    console.log(`\t LP Tokens Carl balance: ${lpTokenscarl}`);
+    await showReserves(pair);
+    console.log("\n");
+
+    console.log(`\t Bob Remove Liquidity: ${lpTokensBob}`);
+    await pair.connect(bob).approve(router.address, MaxUint256);
+    await router.connect(bob).removeLiquidity(
       token0.address,
       token1.address,
-      10000,
-      10000,
+      lpTokensBob,
       0,
       0,
-      aliceAddress,
+      bobAddress,
       MaxUint256,
       overrides
-    )
-    // const path = [token0.address, token1.address]
-    // // expect(await router.getAmountsIn(BigNumber.from(1), path)).to.deep.eq([BigNumber.from(2), BigNumber.from(1)])
-    // console.log(`\t LP Tokens Alice balance: ${await pair.balanceOf(aliceAddress)}`);
+    );
 
-    // await router.swapExactTokensForTokens(
-    //   BigNumber.from(50),
-    //   0,
-    //   path,
-    //   ownerAddress,
-    //   MaxUint256,
-    // );
-
-    // await router.addLiquidity(
-    //   token0.address,
-    //   token1.address,
-    //   BigNumber.from(10000),
-    //   BigNumber.from(10000),
-    //   0,
-    //   0,
-    //   bobAddress,
-    //   MaxUint256,
-    //   overrides
-    // )
-
-    // const lpTokensBob = await pair.balanceOf(bobAddress);
-    // console.log(`\t LP Tokens Bob balance: ${lpTokensBob}`);
-
-    // await pair.connect(bob).approve(router.address, MaxUint256);
-    // await router.connect(bob).removeLiquidity(
-    //   token0.address,
-    //   token1.address,
-    //   BigNumber.from(9000),
-    //   0,
-    //   0,
-    //   bobAddress,
-    //   MaxUint256,
-    //   overrides
-    // );
-
-    // console.log(`\t Bob token0.balanceOf: ${await token0.balanceOf(bobAddress)}`);
-    // console.log(`\t Bob token1.balanceOf: ${await token1.balanceOf(bobAddress)}`);
+    console.log(`\t Bob token0.balanceOf: ${await token0.balanceOf(bobAddress)}`);
+    console.log(`\t Bob token1.balanceOf: ${await token1.balanceOf(bobAddress)}`);
+    await showReserves(pair);
 
 
   });
