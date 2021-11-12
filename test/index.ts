@@ -19,12 +19,12 @@ const overrides = {
 
 const showReserves = async (pair: Contract) => {
   await pair.sync();
-  const [reserve0, reserve1] = await pair.getReserves();
-  console.log(`\t Reserve0: ${reserve0} | Reserve1: ${reserve1} | K value: ${reserve0 * reserve1}`);
+  const [reserve0, reserve1, _] = await pair.getReserves();
+  console.log(`\t Reserve0: ${reserve0} | Reserve1: ${reserve1} | K value: ${reserve0 * reserve1} | Ratio: ${reserve0 / reserve1}`);
 }
 
 
-describe("Uniswap Factory", function () {
+describe("UniswapV2 Test Liquidity", function () {
   let owner, ownerAddress;
   let alice, aliceAddress;
   let bob, bobAddress;
@@ -32,7 +32,7 @@ describe("Uniswap Factory", function () {
   let token0: ERC20Mock, token1: ERC20Mock;
   let WETH;
 
-  it("Should deploy factory", async function () {
+  it("Should add liquidity to UniswapV2", async function () {
     [owner, alice, bob, carl] = await ethers.getSigners();
     ownerAddress = await owner.getAddress();
     aliceAddress = await alice.getAddress();
