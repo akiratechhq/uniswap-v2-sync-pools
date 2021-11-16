@@ -17,10 +17,11 @@ const overrides = {
   gasLimit: 9999999
 }
 
-const showReserves = async (pair: Contract) => {
+const showReserves = async (router: UniswapV2Router02, pair: Contract) => {
   await pair.sync();
   const [reserve0, reserve1, _] = await pair.getReserves();
-  console.log(`\t Reserve0: ${reserve0} | Reserve1: ${reserve1} | K value: ${reserve0 * reserve1} | Ratio: ${reserve0 / reserve1}`);
+  const quote = await router.quote(parseUnits('1'), reserve0, reserve1);
+  console.log(`\t Reserve0: ${reserve0} | Reserve1: ${reserve1} | K value: ${reserve0 * reserve1} | Quote: ${formatUnits(quote)}`);
 }
 
 
@@ -113,21 +114,39 @@ describe("UniswapV2 Test Liquidity", function () {
     // NB: if getting reverted with reason string 'ds-math-sub-underflow'
     // it means that you need to add more liquidity
     // see UniswapV2Pair.MINIMUM_LIQUIDITY and mint()
-    const aliceAddLiqTkn0 = 4000;
-    const aliceAddLiqTkn1 = 2000;
+    const aliceAddLiqTkn0 = 100_000_000;
+    const aliceAddLiqTkn1 = 100_000_000;
     console.log(`\t Alice addLiquidity Tkn0: ${aliceAddLiqTkn0}; Tkn1: ${aliceAddLiqTkn1}`);
     await addLiquidity(
       aliceAddLiqTkn0,
       aliceAddLiqTkn1,
       aliceAddress,
     );
-    const path = [token0.address, token1.address]
-    // // expect(await router.getAmountsIn(BigNumber.from(1), path)).to.deep.eq([BigNumber.from(2), BigNumber.from(1)])
-    await showReserves(pair);
+    const lpTokensAlice = await pair.balanceOf(aliceAddress);
+
+    await showReserves(router, pair);
+
+    console.log("\n");
+    const bobAddLiqTkn0 = 2000;
+    const bobAddLiqTkn1 = 2000;
+    console.log(`\t Bob addLiquidity Tkn0: ${bobAddLiqTkn0}; Tkn1: ${bobAddLiqTkn1}`);
+    await addLiquidity(
+      bobAddLiqTkn0,
+      bobAddLiqTkn1,
+      bobAddress
+    );
+
+    const lpTokensBob = await pair.balanceOf(bobAddress);
+    console.log(`\t LP Tokens Bob balance: ${lpTokensBob}`);
+    await showReserves(router, pair);
+
 
     // NB using callStatic: simulates the call as a view only one
     // returns the values from the chain
-    const tokenASwapAmount = 100;
+    const path = [token0.address, token1.address]
+    // const path = [token1.address, token0.address]
+
+    const tokenASwapAmount = 350;
     const [swapAmount0, swapAmount1] = await router.callStatic.swapExactTokensForTokens(
       tokenASwapAmount,
       0,
@@ -146,35 +165,7 @@ describe("UniswapV2 Test Liquidity", function () {
       MaxUint256,
     );
 
-    await showReserves(pair);
-
-    console.log("\n");
-    const bobAddLiqTkn0 = 4000;
-    const bobAddLiqTkn1 = 2000;
-    console.log(`\t Bob addLiquidity Tkn0: ${bobAddLiqTkn0}; Tkn1: ${bobAddLiqTkn1}`);
-    await addLiquidity(
-      bobAddLiqTkn0,
-      bobAddLiqTkn1,
-      bobAddress
-    );
-
-    const lpTokensBob = await pair.balanceOf(bobAddress);
-    console.log(`\t LP Tokens Bob balance: ${lpTokensBob}`);
-    await showReserves(pair);
-
-    console.log("\n");
-    const carlAddLiqTkn0 = 4000;
-    const carlAddLiqTkn1 = 2000;
-    console.log(`\t Carl addLiquidity Tkn0: ${carlAddLiqTkn0}; Tkn1: ${carlAddLiqTkn1}`);
-    await addLiquidity(
-      carlAddLiqTkn0,
-      carlAddLiqTkn1,
-      carlAddress,
-    );
-
-    const lpTokenscarl = await pair.balanceOf(carlAddress);
-    console.log(`\t LP Tokens Carl balance: ${lpTokenscarl}`);
-    await showReserves(pair);
+    await showReserves(router, pair);
     console.log("\n");
 
     console.log(`\t Bob Remove Liquidity: ${lpTokensBob}`);
@@ -192,8 +183,26 @@ describe("UniswapV2 Test Liquidity", function () {
 
     console.log(`\t Bob token0.balanceOf: ${await token0.balanceOf(bobAddress)}`);
     console.log(`\t Bob token1.balanceOf: ${await token1.balanceOf(bobAddress)}`);
-    await showReserves(pair);
+    await showReserves(router, pair);
 
+    console.log("\n");
+    const aliceRemoveLiq1 = 1653;
+    await pair.connect(alice).approve(router.address, MaxUint256);
+    console.log(`\t Alice Remove Liquidity: ${aliceRemoveLiq1}`);
+    await router.connect(alice).removeLiquidity(
+      token0.address,
+      token1.address,
+      aliceRemoveLiq1,
+      0,
+      0,
+      aliceAddress,
+      MaxUint256,
+      overrides
+    );
+
+    console.log(`\t Alice token0.balanceOf: ${await token0.balanceOf(aliceAddress)}`);
+    console.log(`\t Alice token1.balanceOf: ${await token1.balanceOf(aliceAddress)}`);
+    await showReserves(router, pair);
 
   });
 });
